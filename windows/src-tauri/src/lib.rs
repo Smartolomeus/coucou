@@ -6,6 +6,7 @@ mod hooks;
 mod integrations;
 mod island;
 mod log;
+mod openai;
 mod pipe;
 mod platform;
 mod secrets;
@@ -241,8 +242,14 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let model = shared.settings.lock().unwrap().model.clone();
-    claude::send(&chat, &model, query, context).await
+    let (provider, claude_model, openai_model) = {
+        let s = shared.settings.lock().unwrap();
+        (s.chat_provider.clone(), s.model.clone(), s.openai_model.clone())
+    };
+    match provider.as_str() {
+        "openai" => openai::send(&chat, &openai_model, query, context).await,
+        _ => claude::send(&chat, &claude_model, query, context).await,
+    }
 }
 
 #[tauri::command]

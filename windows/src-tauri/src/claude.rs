@@ -31,11 +31,31 @@ No markdown formatting (no **, no ##, no bullet dashes). Use plain text with lin
 pub struct Chat {
     /// Full multi-turn history, including tool_use / tool_result blocks.
     messages: Mutex<Vec<Value>>,
+    /// The ChatGPT side keeps its own history, in OpenAI's message shape, so
+    /// switching provider in the settings never mixes two formats.
+    openai: Mutex<Vec<Value>>,
 }
 
 impl Chat {
     pub fn reset(&self) {
         self.messages.lock().unwrap().clear();
+        self.openai.lock().unwrap().clear();
+    }
+
+    pub(crate) fn openai_is_empty(&self) -> bool {
+        self.openai.lock().unwrap().is_empty()
+    }
+
+    pub(crate) fn openai_push(&self, message: Value) {
+        self.openai.lock().unwrap().push(message);
+    }
+
+    pub(crate) fn openai_pop(&self) {
+        self.openai.lock().unwrap().pop();
+    }
+
+    pub(crate) fn openai_snapshot(&self) -> Vec<Value> {
+        self.openai.lock().unwrap().clone()
     }
 
     fn is_empty(&self) -> bool {

@@ -20,10 +20,24 @@ pub struct Settings {
     /// Defaulted explicitly so a settings.json written by an older build still loads.
     #[serde(default = "default_model")]
     pub model: String,
+    /// Who answers in the chat: "anthropic" (Claude) or "openai" (ChatGPT).
+    #[serde(default = "default_chat_provider")]
+    pub chat_provider: String,
+    /// Model name sent to OpenAI when the provider is "openai".
+    #[serde(default = "default_openai_model")]
+    pub openai_model: String,
 }
 
 fn default_model() -> String {
     crate::claude::DEFAULT_MODEL.to_string()
+}
+
+fn default_chat_provider() -> String {
+    "anthropic".to_string()
+}
+
+fn default_openai_model() -> String {
+    crate::openai::DEFAULT_MODEL.to_string()
 }
 
 impl Default for Settings {
@@ -43,6 +57,8 @@ impl Default for Settings {
             autostart: false,
             hooks_installed: false,
             model: default_model(),
+            chat_provider: default_chat_provider(),
+            openai_model: default_openai_model(),
         }
     }
 }

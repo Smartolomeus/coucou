@@ -171,21 +171,96 @@ function claudeSection(status: HookStatus): HTMLElement {
   return section;
 }
 
-// ── Claude API section ────────────────────────────────────────────────────────
+// ── Chat: provider and API keys ───────────────────────────────────────────────
 
-const MODELS: [string, string][] = [
+const CLAUDE_MODELS: [string, string][] = [
   ["claude-opus-5", "Claude Opus 5"],
   ["claude-sonnet-5", "Claude Sonnet 5"],
   ["claude-haiku-4-5", "Claude Haiku 4.5"],
 ];
 
-function apiSection(hasKey: boolean): HTMLElement {
-  const dot = statusDot(hasKey);
-  const state = h("span", { class: "hint", text: hasKey ? "Schlüssel in der Windows-Anmeldeinformationsverwaltung gespeichert." : "Noch kein Schlüssel – der Chat braucht einen." });
+/** Suggestions only: the field takes any model name OpenAI offers. */
+const OPENAI_MODELS = ["gpt-5", "gpt-5-mini", "gpt-5-nano"];
+
+function chatSection(): HTMLElement {
+  const provider = h("select", {}) as HTMLSelectElement;
+  provider.append(
+    h("option", { value: "anthropic", text: "Claude (Anthropic)" }),
+    h("option", { value: "openai", text: "ChatGPT (OpenAI)" }),
+  );
+  provider.value = settings.chatProvider;
+  provider.addEventListener("change", () => {
+    settings.chatProvider = provider.value as Settings["chatProvider"];
+    void save();
+  });
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Chat" })),
+    h("div", { class: "hint", text: "Wer in der Insel antwortet. Den Schlüssel für den gewählten Anbieter trägst du darunter ein." }),
+    h("div", { class: "row" }, h("label", { text: "Chat-Anbieter" }), provider),
+  );
+}
+
+function claudeModelControl(): HTMLElement {
+  const model = h("select", {}) as HTMLSelectElement;
+  for (const [id, label] of CLAUDE_MODELS) model.append(h("option", { value: id, text: label }));
+  if (!CLAUDE_MODELS.some(([id]) => id === settings.model)) {
+    model.append(h("option", { value: settings.model, text: settings.model }));
+  }
+  model.value = settings.model;
+  model.addEventListener("change", () => {
+    settings.model = model.value;
+    void save();
+  });
+  return model;
+}
+
+function openaiModelControl(): HTMLElement {
+  const listId = "openai-models";
+  const model = h("input", {
+    type: "text",
+    list: listId,
+    placeholder: "gpt-5",
+    style: "flex:1 1 auto;min-width:0;max-width:240px",
+    autocomplete: "off",
+    spellcheck: "false",
+  }) as HTMLInputElement;
+  model.value = settings.openaiModel;
+  model.addEventListener("change", () => {
+    settings.openaiModel = model.value.trim() || DEFAULT_SETTINGS.openaiModel;
+    model.value = settings.openaiModel;
+    void save();
+  });
+  return h(
+    "span",
+    { style: "display:contents" },
+    model,
+    h("datalist", { id: listId }, ...OPENAI_MODELS.map((m) => h("option", { value: m }))),
+  );
+}
+
+interface KeySectionDef {
+  title: string;
+  /** Credential Manager entry. */
+  secret: string;
+  placeholder: string;
+  hasKey: boolean;
+  model: HTMLElement;
+  /** Extra line under the status, for what the user should know about this provider. */
+  note?: string;
+}
+
+function keySection(def: KeySectionDef): HTMLElement {
+  const dot = statusDot(def.hasKey);
+  const MISSING = "Noch kein Schlüssel – der Chat braucht einen.";
+  const STORED = "Schlüssel in der Windows-Anmeldeinformationsverwaltung gespeichert.";
+  const state = h("span", { class: "hint", text: def.hasKey ? STORED : MISSING });
 
   const field = h("input", {
     type: "password",
-    placeholder: hasKey ? "••••••••••••  (stored)" : "sk-ant-...",
+    placeholder: def.hasKey ? "••••••••••••  (stored)" : def.placeholder,
     style: "flex:1 1 auto;min-width:0",
     autocomplete: "off",
     spellcheck: "false",
@@ -196,12 +271,10 @@ function apiSection(hasKey: boolean): HTMLElement {
   const feedback = h("div", {});
 
   async function refresh() {
-    const present = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
+    const present = (await Bridge.secretPresent(def.secret)) ?? false;
     dot.style.background = present ? "#22c55e" : "#f4505e";
-    state.textContent = present
-      ? "Schlüssel in der Windows-Anmeldeinformationsverwaltung gespeichert."
-      : "Noch kein Schlüssel – der Chat braucht einen.";
-    field.placeholder = present ? "••••••••••••  (stored)" : "sk-ant-...";
+    state.textContent = present ? STORED : MISSING;
+    field.placeholder = present ? "••••••••••••  (stored)" : def.placeholder;
     clearBtn.style.display = present ? "" : "none";
   }
 
@@ -210,7 +283,7 @@ function apiSection(hasKey: boolean): HTMLElement {
     if (!value) return;
     clear(feedback);
     try {
-      await Bridge.secretSet("anthropic-api-key", value);
+      await Bridge.secretSet(def.secret, value);
       field.value = "";
       feedback.append(h("div", { class: "notice ok", text: "Gespeichert. Der Schlüssel wird nie auf der Festplatte abgelegt." }));
       await refresh();
@@ -222,7 +295,7 @@ function apiSection(hasKey: boolean): HTMLElement {
   clearBtn.addEventListener("click", async () => {
     clear(feedback);
     try {
-      await Bridge.secretClear("anthropic-api-key");
+      await Bridge.secretClear(def.secret);
       feedback.append(h("div", { class: "notice ok", text: "Schlüssel entfernt." }));
       await refresh();
     } catch (err) {
@@ -230,26 +303,16 @@ function apiSection(hasKey: boolean): HTMLElement {
     }
   });
 
-  const model = h("select", {}) as HTMLSelectElement;
-  for (const [id, label] of MODELS) model.append(h("option", { value: id, text: label }));
-  if (!MODELS.some(([id]) => id === settings.model)) {
-    model.append(h("option", { value: settings.model, text: settings.model }));
-  }
-  model.value = settings.model;
-  model.addEventListener("change", () => {
-    settings.model = model.value;
-    void save();
-  });
-
-  clearBtn.style.display = hasKey ? "" : "none";
+  clearBtn.style.display = def.hasKey ? "" : "none";
 
   return h(
     "section",
     {},
-    h("h2", {}, dot, h("span", { text: "Claude" })),
+    h("h2", {}, dot, h("span", { text: def.title })),
     state,
+    def.note ? h("div", { class: "hint", text: def.note }) : null,
     h("div", { class: "row" }, h("label", { text: "API-Schlüssel" }), field, saveBtn, clearBtn),
-    h("div", { class: "row" }, h("label", { text: "Modell" }), model),
+    h("div", { class: "row" }, h("label", { text: "Modell" }), def.model),
     feedback,
   );
 }
@@ -430,6 +493,7 @@ async function main() {
   };
 
   const hasKey = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
+  const hasOpenaiKey = (await Bridge.secretPresent("openai-api-key")) ?? false;
 
   const keys = [
     "stripe-api-key", "github-token", "vercel-token",
@@ -442,7 +506,22 @@ async function main() {
   root.append(
     h("h1", {}, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
     claudeSection(status),
-    apiSection(hasKey),
+    chatSection(),
+    keySection({
+      title: "Claude",
+      secret: "anthropic-api-key",
+      placeholder: "sk-ant-...",
+      hasKey,
+      model: claudeModelControl(),
+    }),
+    keySection({
+      title: "ChatGPT",
+      secret: "openai-api-key",
+      placeholder: "sk-...",
+      hasKey: hasOpenaiKey,
+      model: openaiModelControl(),
+      note: "Der Chat nutzt die OpenAI-API (platform.openai.com), nicht dein ChatGPT-Abo. Websuche ist hier nicht dabei.",
+    }),
     integrationsSection(present),
     generalSection(),
     h("div", {

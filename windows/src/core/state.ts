@@ -92,6 +92,10 @@ export interface Settings {
   hooksInstalled: boolean;
   /** Claude model used by the chat. */
   model: string;
+  /** Who answers in the chat. */
+  chatProvider: "anthropic" | "openai";
+  /** Model name sent to OpenAI when `chatProvider` is "openai". */
+  openaiModel: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -106,6 +110,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autostart: false,
   hooksInstalled: false,
   model: "claude-opus-5",
+  chatProvider: "anthropic",
+  openaiModel: "gpt-5",
 };
 
 type Listener = () => void;
