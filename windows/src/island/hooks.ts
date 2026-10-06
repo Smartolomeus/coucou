@@ -36,7 +36,18 @@ function validateAgent(raw: string | undefined): string | null {
 
 const FALLBACK_COLORS = ["#22C55E", "#EAB308", "#60A5FA", "#E879F9"];
 
+/** Agents we know get a proper name and their own colour; any other tag shows as itself. */
+const KNOWN_AGENTS: Record<string, { name: string; color: string }> = {
+  codex: { name: "Codex", color: "#10A37F" },
+};
+
+function agentLabel(name: string): string {
+  return KNOWN_AGENTS[name]?.name ?? name;
+}
+
 function agentColor(name: string): string {
+  const known = KNOWN_AGENTS[name];
+  if (known) return known.color;
   let h = 0;
   for (let i = 0; i < name.length; i++) {
     h = (Math.imul(31, h) + name.charCodeAt(i)) | 0;
@@ -176,7 +187,7 @@ function handleHook(island: Island, payload: HookPayload) {
   /** Ensure the agent pill exists (no-op for Claude Code). */
   const ensurePill = () => {
     if (isExternalAgent) {
-      State.upsertExternalAgent(agentId, validAgent!, agentColor(validAgent!));
+      State.upsertExternalAgent(agentId, agentLabel(validAgent!), agentColor(validAgent!));
     } else {
       upsert(projectName, cwd);
     }

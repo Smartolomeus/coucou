@@ -69,6 +69,20 @@ function agentWho(task: AgentTask | null, label: string): HTMLElement {
   return row;
 }
 
+/** Which tool a task belongs to, for the wording of the alert cards. */
+function toolName(task: AgentTask | null): string {
+  if (task?.source === "n8n") return "n8n";
+  return "Claude Code";
+}
+
+/**
+ * "Claude Code ist fertig" — but an agent's name is already shown next to its
+ * dot, so there the sentence starts at the verb: "Codex · ist fertig".
+ */
+function says(task: AgentTask | null, rest: string): string {
+  return task?.source === "agent" ? rest : `${toolName(task)} ${rest}`;
+}
+
 function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElement {
   const el = h("div", { class: "stack" }, ...children);
   el.style.padding = `4px ${padRight}px 4px ${padLeft}px`;
@@ -175,7 +189,8 @@ function buildOverview(actions: ViewActions): ViewHost {
       // VS Code with a live Claude Code session keeps the ticker; every other
       // pill shows its own card, exactly like IntegrationCardView.
       const sessionActive =
-        task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
+        (task?.id === "integration_claude" || task?.source === "agent") &&
+        (task.state !== "idle" || task.steps.length > 0);
 
       if (task && sessionActive) {
         if (mode !== "ticker") {
@@ -185,11 +200,9 @@ function buildOverview(actions: ViewActions): ViewHost {
           cardKey = "";
         }
         clear(who);
-        who.append(
-          dot(task.color, 7),
-          h("span", { class: "name", text: task.name }),
-          h("span", { class: "tool", text: task.source === "claudeCode" ? "Claude Code" : "n8n" }),
-        );
+        who.append(dot(task.color, 7), h("span", { class: "name", text: task.name }));
+        // An agent's own name is already the row's name; no second label.
+        if (task.source !== "agent") who.append(h("span", { class: "tool", text: toolName(task) }));
         if (task.steps.length > 1) {
           who.append(h("span", {
             class: "count",
@@ -328,7 +341,7 @@ function buildQuestion(): ViewHost {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code stellt eine Frage"));
+      who.append(agentWho(State.focusTask, says(State.focusTask, "stellt eine Frage")));
       const task = State.focusTask;
       title.textContent = task?.steps.at(-1) ?? "Claude braucht eine Antwort.";
       clear(row);
@@ -353,7 +366,7 @@ function buildError(actions: ViewActions): ViewHost {
     sync() {
       const task = State.focusTask;
       clear(who);
-      who.append(agentWho(task, task?.source === "n8n" ? "n8n" : "Claude Code"));
+      who.append(agentWho(task, task?.source === "agent" ? "" : toolName(task)));
       title.textContent = task?.source === "n8n" ? "Workflow gestoppt." : "Sitzung wegen eines Fehlers beendet.";
       detail.textContent = task?.steps.at(-1) ?? "Keine Details verfügbar.";
     },
@@ -374,7 +387,7 @@ function buildFinished(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code ist fertig"));
+      who.append(agentWho(State.focusTask, says(State.focusTask, "ist fertig")));
       title.textContent = State.focusTask?.steps.at(-1) ?? "Sitzung abgeschlossen";
     },
   };
