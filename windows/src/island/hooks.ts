@@ -60,22 +60,22 @@ function lastPathComponent(p: string): string {
   return idx >= 0 ? cleaned.slice(idx + 1) : cleaned;
 }
 
-/** frenchStep() — same labels as the macOS app. */
+/** Beschriftung der Tool-Schritte im Ticker. */
 const TOOL_LABELS: Record<string, string> = {
-  Bash: "Exécute",
-  Read: "Lit",
-  Write: "Écrit",
-  Edit: "Modifie",
-  Glob: "Cherche",
-  Grep: "Recherche",
-  WebSearch: "Recherche web",
-  WebFetch: "Récupère",
-  TodoWrite: "Tâches",
+  Bash: "Führt aus",
+  Read: "Liest",
+  Write: "Schreibt",
+  Edit: "Ändert",
+  Glob: "Sucht",
+  Grep: "Durchsucht",
+  WebSearch: "Websuche",
+  WebFetch: "Ruft ab",
+  TodoWrite: "Aufgaben",
   Task: "Agent",
-  LS: "Liste",
-  MultiEdit: "Modifie",
+  LS: "Listet",
+  MultiEdit: "Ändert",
   NotebookEdit: "Notebook",
-  PowerShell: "Exécute",
+  PowerShell: "Führt aus",
 };
 
 function stepLabel(tool: string, input: Record<string, unknown>): string {
@@ -152,7 +152,7 @@ function handleHook(island: Island, payload: HookPayload) {
   const name = payload.hook_event_name ?? "";
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
-  const projectName = aliasProjectName(raw || "Session");
+  const projectName = aliasProjectName(raw || "Sitzung");
 
   // Route to the right pill. Valid coucou_agent → dynamic "agent_<name>" pill.
   // "claude" is reserved; absent or invalid → Claude Code pill unchanged.
@@ -214,7 +214,7 @@ function handleHook(island: Island, payload: HookPayload) {
 
     case "PostToolUseFailure":
       State.updateTask(agentId, "working");
-      State.appendStep(agentId, "⚠ failed");
+      State.appendStep(agentId, "⚠ fehlgeschlagen");
       break;
 
     case "Notification": {
@@ -263,11 +263,11 @@ function handleHook(island: Island, payload: HookPayload) {
       break;
 
     case "SubagentStart":
-      State.appendStep(agentId, "+ subagent");
+      State.appendStep(agentId, "+ Subagent");
       break;
 
     case "SubagentStop":
-      State.appendStep(agentId, "• subagent done");
+      State.appendStep(agentId, "• Subagent fertig");
       break;
 
     case "PermissionRequest": {

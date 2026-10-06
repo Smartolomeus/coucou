@@ -25,9 +25,9 @@ pub fn inbox_dir() -> PathBuf {
 
 pub fn ingest(source: &str) -> Result<DroppedFile, String> {
     let src = Path::new(source);
-    let meta = std::fs::metadata(src).map_err(|e| format!("cannot read {source}: {e}"))?;
+    let meta = std::fs::metadata(src).map_err(|e| format!("{source} kann nicht gelesen werden: {e}"))?;
     if meta.is_dir() {
-        return Err("Folders can't be dropped yet.".into());
+        return Err("Ordner können noch nicht abgelegt werden.".into());
     }
 
     let dir = inbox_dir();
@@ -52,7 +52,7 @@ pub fn ingest(source: &str) -> Result<DroppedFile, String> {
         }
     }
 
-    std::fs::copy(src, &dest).map_err(|e| format!("cannot copy: {e}"))?;
+    std::fs::copy(src, &dest).map_err(|e| format!("Kopieren fehlgeschlagen: {e}"))?;
     // CopyFileEx carries the source's timestamps across, so a file last edited
     // three years ago would arrive already older than the sweep window and be
     // deleted on the spot. The inbox ages from when *we* copied it.

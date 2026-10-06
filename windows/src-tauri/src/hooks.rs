@@ -73,7 +73,7 @@ fn read_settings() -> Result<Value, String> {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
         // A lock, a permission problem, a bad drive: all of them mean we do not
         // know what is in there, and not knowing is not the same as empty.
-        Err(err) => Err(format!("Can't read {}: {err}", path.display())),
+        Err(err) => Err(format!("{} kann nicht gelesen werden: {err}", path.display())),
     }
 }
 
@@ -89,9 +89,9 @@ fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
     }
     match serde_json::from_slice::<Value>(text) {
         Ok(v) if v.is_object() => Ok(v),
-        Ok(_) => Err(format!("{path} isn't a JSON object — Coucou won't touch it.")),
+        Ok(_) => Err(format!("{path} ist kein JSON-Objekt – Coucou rührt die Datei nicht an.")),
         Err(err) => Err(format!(
-            "{path} isn't valid JSON ({err}). Fix or move it, then try again — Coucou won't overwrite it."
+            "{path} ist kein gültiges JSON ({err}). Korrigiere oder verschiebe die Datei und versuche es erneut – Coucou überschreibt sie nicht."
         )),
     }
 }
@@ -286,14 +286,14 @@ pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
     let current = read_settings()?;
     if current_fingerprint() != fingerprint {
         return Err(format!(
-            "{} changed since the preview. Nothing was written — review the new diff.",
+            "{} hat sich seit der Vorschau geändert. Es wurde nichts geschrieben – prüfe den neuen Diff.",
             path.display()
         ));
     }
 
     let backup = backup_path();
     if path.exists() {
-        std::fs::copy(&path, &backup).map_err(|e| format!("backup failed: {e}"))?;
+        std::fs::copy(&path, &backup).map_err(|e| format!("Backup fehlgeschlagen: {e}"))?;
     }
 
     let next = if install { merged(&current) } else { without_ours(&current) };
@@ -310,11 +310,11 @@ pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
     let temp = path.with_extension(format!("json.coucou-{}", std::process::id()));
     if let Err(err) = write_like(&temp, &path, text.as_bytes()) {
         let _ = std::fs::remove_file(&temp);
-        return Err(format!("write failed: {err}"));
+        return Err(format!("Schreiben fehlgeschlagen: {err}"));
     }
     if let Err(err) = std::fs::rename(&temp, &path) {
         let _ = std::fs::remove_file(&temp);
-        return Err(format!("write failed: {err}"));
+        return Err(format!("Schreiben fehlgeschlagen: {err}"));
     }
     Ok(backup.to_string_lossy().to_string())
 }
@@ -660,7 +660,7 @@ mod tests {
         let stale = preview(false).unwrap();
         std::fs::write(&path, br#"{"model":"someone-else-edited-this"}"#).unwrap();
         let err = write(false, &stale.fingerprint).unwrap_err();
-        assert!(err.contains("changed since the preview"), "got: {err}");
+        assert!(err.contains("seit der Vorschau geändert"), "got: {err}");
         let untouched: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(untouched["model"], "someone-else-edited-this");
 
